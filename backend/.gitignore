@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+models/*
+!models/.gitkeep
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+history.json
+auth.sqlite3
+auth.sqlite3-shm
+auth.sqlite3-wal

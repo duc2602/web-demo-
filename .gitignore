@@ -1,0 +1,3 @@
+*.pth
+*.state
+**/node_modules/

@@ -1,0 +1,624 @@
+HUONG DAN HIEU PROJECT
+Ung dung AI khoi phuc anh chu viet
+
+================================================================
+1. TOM TAT NGAN
+================================================================
+
+Day la ung dung web/desktop local de dua anh vao model AI va nhan anh
+da duoc xu ly. Nguoi dung co the quan ly model, chay suy luan (inference),
+xem lich su va tai ket qua.
+
+Can phan biet ro:
+
+- Day la ung dung SU DUNG model de suy luan.
+- Trong source code hien tai khong thay training loop de huan luyen model.
+- Dataset builder chi tao anh cap clean/degraded, khong tu huan luyen model.
+- Ung dung khong doc noi dung chu nhu OCR. No xu ly anh pixel; khong tu
+  chuyen chu viet thanh van ban.
+- Model duoc ho tro tu dong hien tai la Restormer checkpoint.
+
+Cong nghe chinh:
+- Frontend: React, TypeScript, Vite, Tailwind CSS.
+- Backend: Python, FastAPI, PyTorch.
+- Luu tai khoan, session, metadata model, lich su: MySQL.
+- Luu file anh va checkpoint: cac thu muc tren may dang chay backend.
+- Desktop wrapper: Electron.
+
+================================================================
+2. CAC KHAI NIEM CAN BIET
+================================================================
+
+Frontend:
+Phan giao dien chay trong browser/Electron. Hien thi form, nhan thao tac,
+gui request den backend, va hien thi tien trinh/ket qua.
+
+Backend:
+Server Python nhan API request, kiem tra dang nhap/quyen, luu file,
+nap model PyTorch, chay suy luan, tra ket qua.
+
+API:
+Giao dien giao tiep giua frontend va backend. Vi du frontend gui anh va
+model_id den POST /api/inference.
+
+Checkpoint (.pth, .pt):
+File chua trong so (weights) cua model. Thong thuong khong chua day du
+ma nguon hay dataset. Backend dung kien truc Restormer trong source de
+tao model, sau do nap weights vao model.
+
+Inference:
+Dung model da duoc huan luyen de tao ket qua tu anh dau vao. Khac voi
+training la qua trinh cap nhat weights tu du lieu va loss.
+
+Tensor:
+Du lieu anh da chuyen thanh dang ma PyTorch tinh toan duoc. Trong ung dung,
+anh RGB uint8 duoc dua ve float [0,1], doi thu tu tu NHWC sang NCHW.
+
+GPU/CUDA:
+CUDA la nen tang tinh toan GPU NVIDIA. Che do Auto chon CUDA neu PyTorch
+nhan thay GPU CUDA; neu khong thi chon CPU. Full-image va batch lon co the
+can nhieu VRAM hon.
+
+Tile:
+Mieng anh nho cat ra tu anh lon. Chay model theo tung mieng giup giam RAM/
+VRAM. Tile overlap la phan chong len nhau giua cac mieng de tron bien tile,
+giam duong noi trong anh dau ra.
+
+PSNR va SSIM:
+Chi so so sanh hai anh:
+- PSNR (dB): do sai lech pixel; thuong cao hon la tot hon.
+- SSIM: do tuong dong cau truc; gan 1 thuong la tuong dong cao.
+Chi so chi co y nghia chat luong khi co anh ground truth phu hop.
+
+================================================================
+3. CAU TRUC THU MUC
+================================================================
+
+backend/app/
+  main.py
+    Tao FastAPI app, bat CORS, dang ky API routers, khoi tao database,
+    mount giao dien da build neu frontend/dist ton tai.
+
+  server.py
+    Chay Uvicorn va doc host/port tu cau hinh.
+
+  config.py
+    Doc cau hinh tu environment/backend/.env:
+    dia chi server, thu muc, gioi han upload, inference defaults,
+    cookie/session va MySQL. Khong chia se file .env vi co the co mat khau.
+
+  api/
+    auth.py       Dang nhap, dang xuat, setup admin, users, phan quyen.
+    models.py     Upload, liet ke, lay metadata va xoa model.
+    inference.py  Bat dau inference, xem tien trinh, history va trash.
+    outputs.py    Tra anh input/output va thumbnail.
+    system.py     Tra thong tin CPU/RAM/CUDA.
+
+  services/
+    auth_service.py       Password, session, MySQL users.
+    data_service.py       MySQL metadata model va inference history.
+    file_service.py       Kiem tra extension/kich thuoc va luu file upload.
+    model_service.py      CRUD model metadata va file checkpoint.
+    inference_service.py  Tao job, cap nhat tien trinh, luu history.
+
+  schemas/
+    Pydantic models kiem tra/tao hinh dang du lieu request va response.
+
+  inference/
+    pipeline.py       Luong xu ly anh tu dau vao den dau ra.
+    model_loader.py   Nap checkpoint, suy ra tham so Restormer, chay model.
+    tiler.py          Cat, padding, ghep tile va feather blending.
+    degradations.py   Tao anh suy giam gia lap: noise, blur, broken, missing,
+                      occlusion.
+    postprocess.py    Doc/ghi anh va chuan hoa anh ve RGB.
+    dataset_builder.py Tao dataset cap clean/degraded va manifest.csv.
+    architectures/
+      restormer_arch.py
+        Dinh nghia kien truc mang Restormer.
+
+frontend/src/
+  main.tsx             Khoi dong React, Router, CSS, dang ky service worker.
+  App.tsx              Auth provider, dieu kien dang nhap, cac route.
+  pages/
+    AuthPage.tsx       Dang nhap/dang ky/setup/reset password.
+    Dashboard.tsx      Man hinh chinh chon anh/model va chay inference.
+    Models.tsx         Quan ly model.
+    History.tsx        Lich su va chi tiet mot lan chay.
+    Trash.tsx          Khoi phuc/xoa vinh vien history.
+    Settings.tsx       Cau hinh inference va thong tin he thong.
+    Users.tsx          Quan ly tai khoan cho admin.
+  components/
+    ImageUploader.tsx, ModelUploader.tsx, InferenceProgress.tsx,
+    ResultViewer.tsx, BeforeAfter.tsx, Sidebar.tsx, Toast.tsx.
+  context/
+    AuthContext.tsx    Trang thai nguoi dung/dang nhap.
+    AppContext.tsx     Model/anh/job/settings dang duoc chon tren giao dien.
+  services/
+    api.ts             Axios client.
+    inferenceService.ts API inference/history/polling.
+    modelService.ts    API model.
+  types/index.ts       TypeScript types cho API data.
+  index.css           Styles.
+  package.json        Dependencies va cac lenh dev/build/lint.
+  eslint.config.*     Hien CHUA CO file cau hinh ESLint trong frontend/.
+                      Vi vay lenh lint chua the phan tich source code.
+
+desktop/
+  main.js
+    Electron tao cua so, kiem tra backend, chay backend process va mo app.
+  launch_app.ps1
+    Script PowerShell goi npm start.
+  package.json
+    Scripts Electron start/dev/dist.
+
+Cac thu muc du lieu quan trong:
+- backend/models/    Checkpoint va metadata model.
+- backend/uploads/   Anh input da upload.
+- backend/outputs/   Anh output/degraded.
+- backend/datasets/  Dataset cap cho experiment.
+- frontend/dist/     Giao dien frontend da build.
+- node_modules/ va backend/.venv/ la dependencies, khong phai source chinh.
+
+================================================================
+4. LUONG CHAY TOAN UNG DUNG
+================================================================
+
+A. Khoi dong
+
+1. start.bat doc APP_PORT tu backend/.env.
+2. start.bat chay backend/start.ps1.
+3. start.ps1 dung uv de chay app.server.
+4. app.server khoi dong Uvicorn tai app_host/app_port.
+5. Khi app khoi dong, main.py tao cac thu muc va khoi tao bang MySQL.
+6. Neu frontend/dist ton tai, backend phuc vu giao dien da build.
+7. start.bat mo Microsoft Edge o dia chi local.
+
+Che do phat trien frontend:
+- Vite doc VITE_DEV_HOST, VITE_DEV_PORT, VITE_API_BASE_URL tu backend/.env.
+- Request /api duoc Vite proxy sang backend.
+
+Desktop:
+- Electron mo app trong cua so rieng va co the tu khoi dong backend.
+- Can chu y: desktop/main.js hien kiem tra backend o port 8000 va tim Python
+  trong backend/.venv. Trong khi backend/start.ps1 dung uv va app port doc tu
+  .env. Neu cac gia tri/moi truong nay khong khop, desktop co the khong chay
+  dung nhu mong doi.
+
+B. Dang nhap
+
+1. Frontend goi GET /api/auth/status.
+2. Backend tra setup_required va user neu cookie session hop le.
+3. Neu chua co admin, frontend hien man hinh tao tai khoan admin dau tien.
+4. Khi login thanh cong, server tao token ngau nhien, chi luu hash token trong
+   MySQL va gui token goc trong cookie HttpOnly.
+5. Cac API can dang nhap doc cookie va tra user tu session.
+6. require_user kiem tra dang nhap; require_admin kiem tra role admin.
+
+Password duoc hash bang scrypt voi salt rieng. Dung session cookie HttpOnly
+de JavaScript frontend khong doc truc tiep token.
+
+C. Chay inference
+
+1. Nguoi dung chon model va upload/chon anh tren Dashboard.
+2. Frontend gui multipart/form-data len POST /api/inference, bao gom:
+   model_id, input_image, tile_size, tile_overlap, batch_size, device,
+   processing_mode, degradation_mode va tham so degradation.
+3. Backend kiem tra:
+   - nguoi dung da dang nhap;
+   - model ton tai;
+   - file anh co extension duoc chap nhan va dung gioi han;
+   - tile_size >= 32 va chia het cho 8;
+   - overlap nho hon tile_size;
+   - batch_size tu 1 den 64;
+   - mode/device hop le.
+4. File anh duoc luu voi UUID, khong dung ten file client lam duong dan.
+5. Backend tao job status queued, roi len lich chay qua FastAPI BackgroundTasks.
+6. API tra job_id cho frontend.
+7. Frontend poll GET /api/inference/{job_id} moi khoang 800ms.
+8. Backend cap nhat job trong bo nho: queued -> loading_model -> processing
+   -> completed hoac failed.
+9. Frontend hien progress, tile count, thoi gian va ket qua.
+10. Khi thanh cong, anh output duoc luu trong outputs/; metadata history vao
+    MySQL. Frontend tai anh qua API outputs co kiem tra quyen.
+
+Luu y: trang thai job dang chay nam trong bo nho backend, khong phai task queue
+phan tan. Neu restart backend giua luc chay, job dang xu ly co the mat.
+
+================================================================
+5. PIPELINE XU LY ANH VA MODEL
+================================================================
+
+Pipeline trong inference/pipeline.py:
+
+1. Mo anh bang Pillow, xu ly EXIF orientation, chuyen RGB.
+2. Tien xu ly anh chup dien thoai bang OpenCV:
+   - thu nho anh de tim duong vien nhanh hon;
+   - neu tim thay nhieu tu giay, tach tung trang va chinh phoi canh tren anh goc;
+   - uoc luong nen va chia anh cho nen de giam bong do tren tung trang;
+   - chuyen anh xam thanh RGB 3 kenh. Neu khong tim thay vien ro rang,
+     giu nguyen khung anh va van chuan hoa anh sang.
+   Khong ep anh ve 1024x1024 de tranh meo ti le va mat chi tiet. Moi trang
+   duoc chay inference, luu, phan quyen va hien thi rieng trong ket qua/history.
+3. Neu degradation_mode = direct:
+   - dua anh upload vao model;
+   - khong co ground truth that.
+4. Neu chon mot degradation mode khac direct:
+   - coi anh da tien xu ly la anh clean;
+   - tao ban noisy/blurred/broken/missing/occluded;
+   - dua ban suy giam vao model;
+   - so sanh ket qua voi anh clean ban dau.
+5. ModelLoader doc checkpoint bang PyTorch.
+6. ModelLoader nhan dien state_dict va chi ho tro Restormer.
+   No co the tim state_dict trong mot so key thong dung va loai bo prefix.
+7. Tham so mang nhu so channel, block, attention head duoc suy ra tu weights.
+8. Restormer duoc tao va load_state_dict(strict=True).
+9. Anh duoc chay tren CUDA hoac CPU.
+10. Ket qua duoc clip ve [0,1], doi ve RGB uint8 va ghi PNG.
+
+Restormer la mang encoder-decoder:
+- Encoder giam kich thuoc khong gian va tang channel.
+- Latent la tang o do sau nhat.
+- Decoder tang kich thuoc va ket hop skip connections tu encoder.
+- Transformer block gom attention va feed-forward network.
+- Output cong them input trong cau hinh Restormer thong thuong (residual).
+
+Tile mode:
+- Chia anh thanh tile co overlap.
+- Padding reflect o canh anh de giu pixel canh tu nhien.
+- Chay model tung batch tile.
+- Ghep tile bang feather weighting: vung giua tile co trong so cao, bien overlap
+  duoc pha tron.
+- Cat ve kich thuoc anh goc.
+
+Full-image mode:
+- Chay ca anh trong mot lan.
+- Padding chieu cao/rong len boi so 8 do Restormer downsample 3 lan.
+- Cat ve kich thuoc ban dau.
+- Anh lon co the het VRAM/RAM; tile mode an toan hon.
+
+Batch size lon thuong co the tang toc GPU nhung ton VRAM hon.
+Tile size lon co the giu nhieu context hon nhung ton bo nho hon.
+Overlap lon tang phan tinh toan nhung co the giam duong noi giua tile.
+
+================================================================
+6. DEGRADATION VA CAC CHI SO
+================================================================
+
+Cac degradation mode:
+- direct: chay thang anh that vao model.
+- synthetic_noise: them Gaussian noise.
+- blur: lam mo bang Gaussian blur.
+- broken: tao doan dut tren net chu.
+- missing: xoa cac vung anh.
+- occlusion: che mot so vung bang khoi mau.
+
+Trong synthetic mode, anh upload duoc coi la clean ground truth.
+Ung dung tao degraded input va co the tinh PSNR/SSIM voi clean reference.
+Day la cach thu pipeline co biet dap an.
+
+Trong direct mode, ung dung khong co anh dap an. PSNR/SSIM vs input chi cho biet
+output khac input bao nhieu; KHONG chung minh output chinh xac hon.
+
+Giao dien co "Confidence Score", nhung day la diem tu tinh tu PSNR/SSIM:
+55% PSNR da chuan hoa + 45% SSIM da chuan hoa. No khong phai xac suat,
+khong phai confidence that cua model, va khong nen xem nhu diem danh gia khoa hoc.
+
+================================================================
+7. DATASET: DUNG DE LAM GI, HIEN CO GI
+================================================================
+
+Dataset README nam trong backend/datasets/README.md.
+Dataset builder nhan mot hoac nhieu anh clean va tao:
+- clean/: anh sach goc.
+- degraded/: nhieu phien ban bi suy giam.
+- manifest.csv: moi dong ghep mot degraded image voi clean target va luu
+  mode, strength, seed, split va duong dan.
+
+Builder hien tao 5 mode x 5 muc strength (20, 40, 60, 80, 100) tren moi
+anh clean unique, tong cong 25 degraded image cho moi anh clean.
+
+Trang thai workspace hien tai:
+- 1 anh clean unique.
+- 25 anh degraded.
+- Do do chi co train split; chua co nguon rieng cho validation/test.
+- Lap lai nhieu kieu suy giam tu cung mot trang khong tuong duong voi co nhieu
+  trang/doc gia khac nhau. Khong nen dua ra ket luan model tong quat tu dataset
+  nay.
+
+Chia split theo anh goc, khong theo tung ban suy giam, de tranh anh cung mot
+trang vua xuat hien trong train vua xuat hien trong test.
+
+Lenh tao dataset (PowerShell, chay trong backend):
+uv run --isolated --python 3.12 --with-requirements .\requirements.txt `
+  python -m app.inference.dataset_builder `
+  --source .\uploads\clean-page-1.png `
+  --source .\uploads\clean-page-2.png
+
+Them mot --source cho moi trang clean khac nhau.
+
+QUAN TRONG:
+- Dataset builder KHONG train model.
+- Trong app source hien tai khong thay optimizer/loss.backward/training loop.
+- Muon train can bo sung training code, loss, data loader, config, checkpoint
+  saving va quy trinh danh gia rieng.
+
+================================================================
+8. LUU TRU VA DATABASE
+================================================================
+
+MySQL:
+- users: username, role, password hash, active state.
+- sessions: hash token, user id, thoi han.
+- model_metadata: ten file, kich thuoc, ngay upload, status.
+- inference_history: job, owner, ten anh/model, id file, thoi gian, trash state.
+
+Files tren dia:
+- .pth/.pt: models/.
+- Anh upload: uploads/.
+- Anh ket qua va anh degraded: outputs/.
+- Model metadata cu co the nam trong JSON sidecar; service co co che import
+  JSON cu vao MySQL trong lan khoi tao.
+
+history.json la du lieu cu dung cho migration; history chay hien tai duoc doc/
+ghi qua data_service va MySQL.
+
+Workspace co file auth.sqlite3, nhung code hien tai ket noi MySQL qua PyMySQL.
+Khong nen tu dong cho rang SQLite file nay la database dang duoc app su dung.
+
+Frontend:
+- Inference settings duoc luu trong localStorage cua browser.
+- Anh dang chon va trang thai Dashboard nam trong React context/bien frontend.
+
+Lich su:
+- App chi ghi history khi job completed.
+- Cac lan chay completed moi duoc luu.
+- App giu gioi han khoang 200 record history chua xoa.
+- Chuyen vao Trash la soft delete; admin moi co the xoa vinh vien.
+- Xoa vinh vien se xoa record va cac file input/output/degraded lien quan.
+
+================================================================
+9. QUYEN NGUOI DUNG
+================================================================
+
+Admin:
+- Upload/xoa model.
+- Quan ly user va role.
+- Xem history/trash tat ca user.
+- Xoa vinh vien record trong trash.
+
+User:
+- Chay model da co.
+- Xem va quan ly history cua minh.
+- Khong duoc upload/xoa model hay truy cap trang quan ly user.
+- Backend van kiem tra quyen; an menu tren frontend khong phai lop bao ve duy nhat.
+
+Public registration va password recovery phu thuoc cau hinh backend/.env.
+Khong gui file .env, cookie, password, recovery key hay database cho nguoi khac.
+
+================================================================
+10. API QUAN TRONG
+================================================================
+
+Health:
+GET /api/health
+
+Authentication:
+GET    /api/auth/status
+POST   /api/auth/setup
+POST   /api/auth/login
+POST   /api/auth/logout
+POST   /api/auth/register
+POST   /api/auth/password-reset
+GET    /api/auth/me
+GET    /api/auth/users
+POST   /api/auth/users
+PATCH  /api/auth/users/{user_id}
+
+Models:
+POST   /api/models/upload
+GET    /api/models
+GET    /api/models/{model_id}
+DELETE /api/models/{model_id}
+
+Inference:
+POST   /api/inference
+GET    /api/inference/{job_id}
+GET    /api/inference/history
+GET    /api/inference/trash
+DELETE /api/inference/history/{job_id}
+POST   /api/inference/trash/{job_id}/restore
+DELETE /api/inference/trash/{job_id}
+
+Outputs:
+GET /api/outputs/input/{input_id}
+GET /api/outputs/{output_id}
+GET /api/outputs/thumbnail/input/{input_id}
+GET /api/outputs/thumbnail/{output_id}
+
+System:
+GET /api/system
+
+FastAPI co the cung cap tai lieu endpoint tai /docs khi server dang chay.
+
+================================================================
+11. CAC FILE NEN DOC THEO THU TU
+================================================================
+
+1. TOM_TAT_DU_AN.txt
+   Doc muc tieu va chuc nang tong quan; doi chieu voi code vi tai lieu co the cu.
+
+2. frontend/src/App.tsx va frontend/src/pages/Dashboard.tsx
+   Hieu nguoi dung bat dau va chay tac vu tu dau.
+
+3. frontend/src/services/inferenceService.ts
+   Hieu frontend goi API, gui multipart va poll status.
+
+4. backend/app/api/inference.py
+   Hieu backend nhan request va validate.
+
+5. backend/app/services/inference_service.py
+   Hieu job lifecycle va history.
+
+6. backend/app/inference/pipeline.py
+   Hieu xu ly anh end-to-end.
+
+7. backend/app/inference/model_loader.py va
+   backend/app/inference/architectures/restormer_arch.py
+   Hieu nap weights va kien truc AI.
+
+8. backend/app/inference/tiler.py
+   Hieu cach cat va ghep anh lon.
+
+9. backend/app/inference/dataset_builder.py va
+   backend/app/inference/degradations.py
+   Hieu dataset cap va anh suy giam.
+
+10. backend/app/services/auth_service.py va
+    backend/app/services/data_service.py
+    Hieu database, dang nhap, session va history.
+
+================================================================
+12. TU KHOA YOUTUBE DE HOC
+================================================================
+
+Nen tang:
+- "HTTP request response REST API explained"
+- "React TypeScript beginner tutorial useState useEffect"
+- "React Context API explained"
+- "Axios FormData upload file React"
+- "Python FastAPI tutorial beginner"
+- "FastAPI UploadFile BackgroundTasks Pydantic"
+- "MySQL database basics SQL joins transactions"
+- "Cookie session authentication HttpOnly explained"
+
+AI va PyTorch:
+- "PyTorch tensors NCHW NHWC explained"
+- "PyTorch state_dict load_state_dict checkpoint"
+- "PyTorch inference eval no_grad explained"
+- "CNN image restoration vs OCR vs super resolution"
+- "Restormer image restoration explained"
+- "Restormer MDTA GDFN explained"
+- "Image denoising deblurring deep learning"
+
+Anh va danh gia:
+- "Image tiling overlap feather blending explained"
+- "Gaussian noise image augmentation"
+- "PSNR SSIM image quality metrics explained"
+- "Train validation test split data leakage explained"
+- "Synthetic paired dataset image restoration"
+
+Desktop:
+- "Electron main process BrowserWindow child_process spawn"
+- "Electron app package Windows portable"
+
+Lint va code quality:
+- "ESLint 9 flat config React TypeScript"
+- "ESLint typescript-eslint flat config"
+- "ESLint React hooks plugin configuration"
+
+================================================================
+13. CAC DIEU CAN NHO KHI DOC KET QUA
+================================================================
+
+- Upload checkpoint thanh cong khong co nghia la model da dung. Backend chi
+  kiem tra file extension luc upload; checkpoint thuc te duoc doc khi chay.
+- Model loader hien chi ho tro Restormer, khong phai moi file .pth bat ky.
+- Strict load giup xac nhan tensor names/shapes khop kien truc, nhung khong
+  chung minh model duoc train tot cho handwriting.
+- Direct mode khong co ground truth, nen PSNR/SSIM vs input khong phai diem
+  accuracy.
+- Confidence Score la heuristic do giao dien tu tinh, khong phai confidence
+  khoa hoc.
+- Dataset hien tai qua nho va chi co mot trang clean de danh gia generalization.
+- Dataset builder khong cap nhat weights.
+- Settings frontend nam trong localStorage, khong phai config server.
+- Backend .env chua cau hinh nhay cam; chi doc tren may rieng, khong chia se.
+- Desktop wrapper dang kiem tra port 8000 va backend/.venv; can doi chieu voi
+  app_port va moi truong chay thuc te.
+- Backend tu choi request thay doi du lieu trong /api neu Origin khong nam
+  trong danh sach cors_origins. Day la lop bao ve CSRF cho request dung cookie;
+  CORS rieng no khong ngan duoc moi request cross-site co tac dung phu.
+- Backend them X-Content-Type-Options, X-Frame-Options, Referrer-Policy va
+  Permissions-Policy; response API mac dinh co Cache-Control: no-store.
+- ESLint la cong cu phan tich ma tinh, khac voi TypeScript build. Frontend
+  package.json co script "lint": "eslint .", nhung hien chua co eslint.config.js
+  (hoac eslint.config.mjs/ts) trong frontend/ de ESLint 9+ nap quy tac.
+- ESLint va cac plugin lint cung chua duoc khai bao truc tiep trong
+  frontend/package.json. Vi vay npm run lint hien bao khong tim thay
+  eslint.config.* va khong kiem tra source. Muon bat lint can cai/khai bao
+  ESLint va plugin phu hop, tao flat config, sau do chay lai npm run lint.
+
+================================================================
+14. KET QUA KIEM TRA DA CO
+================================================================
+
+Trong lan kiem tra frontend truoc:
+- npm run build thanh cong.
+- npm run lint chua chay duoc: frontend chua co eslint.config.* va ESLint
+  bao khong tim thay config. Lenh lint chua dua ra ket qua pass/fail cua code.
+- Viec build frontend khong kiem tra chat luong model AI hay MySQL runtime.
+
+================================================================
+15. BAO VE MAT KHAU VA DU LIEU KHI TRUYEN QUA MANG
+================================================================
+
+Mat khau tai khoan:
+- Backend da KHONG luu password goc. auth_service.py dung scrypt voi salt
+  ngau nhien de luu password hash.
+- Hash password chi bao ve du lieu trong database neu database bi doc.
+  No KHONG ma hoa request HTTP. Neu dang gui qua HTTP, nguoi bat duoc traffic
+  co the doc password dang nhap, cookie session, anh va checkpoint.
+- Khong tu viet ma hoa password o frontend thay cho HTTPS; ma hoa tuy bien
+  khong bao ve cac file upload va token session.
+
+HTTPS/TLS da duoc them vao:
+- Backend server.py doc TLS_CERTFILE va TLS_KEYFILE de bat HTTPS.
+- Vite dev server cung dung cap chung certificate/key neu duoc cau hinh.
+- Electron doc APP_PORT va cap giao thuc HTTP/HTTPS tu backend/.env.
+- Khi bat TLS, cau hinh bat buoc SESSION_COOKIE_SECURE=true.
+- Backend khong cho APP_HOST bind ra interface khong-loopback neu chua bat TLS.
+- Vite dev server cung chi duoc bind localhost neu chua bat TLS.
+- Certificate phai duoc may khach tin cay va SAN phai khop hostname/IP nguoi
+  dung truy cap. Khong tat kiem tra certificate de "cho no chay".
+- Cau hinh hien tai trong backend/.env dang de APP_HOST va VITE_DEV_HOST la
+  127.0.0.1, khong co certificate TLS, va SESSION_COOKIE_SECURE=false.
+  Nghia la hien chay HTTP chi tren may local; LAN khong the ket noi toi server.
+  Muon dung qua LAN/Internet phai cai certificate tin cay, bat TLS, dat cookie
+  secure va cap nhat cac origin/URL theo HTTPS truoc khi mo bind ra mang.
+
+Cac buoc bat HTTPS:
+1. Xin certificate tu CA tin cay. Neu chi dung trong LAN, tao certificate
+   tu CA noi bo va cai CA goc vao trust store cua may khach.
+2. Dat certificate va private key tren backend, gioi han quyen doc private key.
+3. Trong backend/.env, dat:
+   TLS_CERTFILE=certs/server-cert.pem
+   TLS_KEYFILE=certs/server-key.pem
+   SESSION_COOKIE_SECURE=true
+4. Certificate can co SAN cho dung ten/IP truy cap. Electron mac dinh ket noi
+   https://127.0.0.1:APP_PORT, nen certificate desktop can co SAN IP 127.0.0.1.
+5. Neu chay frontend bang Vite, doi VITE_API_BASE_URL thanh https://...,
+   doi FRONTEND_ORIGIN va CORS_ALLOWED_ORIGINS sang dung origin https,
+   va dat VITE_DEV_HOST/PORT phu hop certificate.
+6. Khoi dong lai server. Truy cap bang https:// va kiem tra trinh duyet bao
+   ket noi an toan, khong bo qua canh bao certificate.
+
+MySQL:
+- Neu MySQL khong nam tren localhost/loopback, app bat buoc co MYSQL_SSL_CA.
+- MYSQL_SSL_CA tro den CA certificate cua MySQL server; code bat ca xac minh
+  certificate va hostname. Khong dung CA khong tin cay.
+- Neu MySQL chay tren cung may, ket noi localhost khong di qua mang.
+
+Gioi han can nho:
+- HTTPS ma hoa du lieu KHI TRUYEN; khong tu dong ma hoa file upload/output,
+  checkpoint hay database tren dia.
+- Neu lo may tinh/o dia, dung BitLocker hoac ma hoa dia tuong duong va bao ve
+  quyen truy cap thu muc backend/models, uploads, outputs va database.
+- Khong mo port backend ra Internet. Neu can truy cap tu xa, uu tien VPN hoac
+  reverse proxy co TLS, gioi han mang va cap nhat certificate.
+- Khong gui private key, .env, session cookie, password hay recovery key.
+- Frontend dependencies: npm audit phat hien package co advisory. Da ap dung
+  cac ban cap nhat khong breaking; van con advisory trong Tailwind 3, Vite 5
+  va React Router 6. Npm de xuat nang major (Tailwind 4, Vite 8, React Router 7);
+  can migration va build/test rieng, khong chay npm audit fix --force tuy tien.
+
+Het.

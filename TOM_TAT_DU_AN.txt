@@ -1,0 +1,28 @@
+BÁO CÁO PROJECT: MODEL KHÔI PHỤC CHỮ VIẾT
+
+1. Mục tiêu
+Xây dựng ứng dụng AI chạy local để phục hồi ảnh chữ viết bị mờ, nhiễu hoặc hư hỏng bằng model deep learning.
+
+2. Các chức năng đã thực hiện
+- Đăng ký, đăng nhập, đăng xuất và phân quyền người dùng/admin.
+- Tải lên, quản lý và xóa model Restormer (.pth, .pt).
+- Tải ảnh đầu vào và chạy khôi phục theo chế độ chia tile hoặc xử lý toàn ảnh.
+- Hỗ trợ tạo ảnh suy giảm mô phỏng: nhiễu, mờ, nét đứt, vùng mất và che khuất.
+- So sánh ảnh đầu vào/đầu ra; tải ảnh kết quả xuống hoặc dùng output làm input cho lượt xử lý tiếp theo.
+- Lưu lịch sử xử lý, khôi phục mục đã xóa và quản lý thùng rác.
+- Hiển thị thời gian inference, kích thước ảnh, PSNR và SSIM.
+- Tự suy ra cấu hình Restormer từ checkpoint để hỗ trợ model có số kênh, số block và attention head khác nhau.
+
+3. Công nghệ
+Frontend: React, TypeScript, Vite, Tailwind CSS.
+Backend: Python, FastAPI, PyTorch.
+Cơ sở dữ liệu: MySQL; lưu thông tin tài khoản và dữ liệu ứng dụng.
+
+4. Bảo mật và kiểm tra
+- Dùng truy vấn SQL có tham số để hạn chế SQL injection.
+- Kiểm tra quyền truy cập ở backend; request chưa đăng nhập bị từ chối, route admin yêu cầu đúng vai trò.
+- Thông tin cấu hình nhạy cảm được đặt trong backend/.env, không đưa vào mã frontend.
+- Frontend đã build thành công; 5 checkpoint Restormer hiện có đã được kiểm tra strict-load.
+
+5. Ghi chú
+Ứng dụng chạy local. GPU chỉ hoạt động khi môi trường PyTorch đang dùng được cài bản hỗ trợ CUDA; nếu không, app chạy bằng CPU.
