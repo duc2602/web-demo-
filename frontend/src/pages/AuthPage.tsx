@@ -8,6 +8,7 @@ export default function AuthPage({ initialSetup }: { initialSetup: boolean }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [setupKey, setSetupKey] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [registerMode, setRegisterMode] = useState(false);
@@ -26,7 +27,7 @@ export default function AuthPage({ initialSetup }: { initialSetup: boolean }) {
 
     setSubmitting(true);
     try {
-      if (initialSetup) await setupAdmin(username, password);
+      if (initialSetup) await setupAdmin(username, password, setupKey);
       else if (recoveryMode) {
         await resetPassword(username, recoveryKey, password);
         setRecoveryMode(false);
@@ -109,6 +110,22 @@ export default function AuthPage({ initialSetup }: { initialSetup: boolean }) {
                 placeholder="username"
               />
             </label>
+            {initialSetup && (
+              <label className="block text-sm text-zinc-300">
+                Initial setup key
+                <input
+                  autoComplete="off"
+                  required
+                  minLength={32}
+                  maxLength={256}
+                  type="password"
+                  value={setupKey}
+                  onChange={(event) => setSetupKey(event.target.value)}
+                  className="input mt-2"
+                  placeholder="Server initial setup key"
+                />
+              </label>
+            )}
             {recoveryMode && (
               <label className="block text-sm text-zinc-300">
                 Recovery key

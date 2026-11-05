@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+import hmac
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from pymysql.err import IntegrityError
 
 from app.config import settings
@@ -65,7 +67,18 @@ def reset_password(credentials: PasswordReset) -> dict:
 
 
 @router.post("/setup")
-def setup_admin(credentials: Credentials, response: Response) -> dict:
+def setup_admin(
+    credentials: Credentials,
+    response: Response,
+    setup_key: str | None = Header(default=None, alias="X-Initial-Admin-Setup-Key"),
+) -> dict:
+    if settings.initial_admin_setup_key is None:
+        raise HTTPException(status_code=503, detail="Initial administrator setup is not configured.")
+    if setup_key is None or not hmac.compare_digest(
+        setup_key.encode("utf-8"),
+        settings.initial_admin_setup_key.encode("utf-8"),
+    ):
+        raise HTTPException(status_code=403, detail="A valid initial administrator setup key is required.")
     if not auth_service.setup_required():
         raise HTTPException(status_code=409, detail="Initial admin account has already been created.")
     try:

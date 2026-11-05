@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     min_password_length: int = Field(ge=10, le=128)
     max_password_length: int = Field(ge=10, le=128)
     allow_public_registration: bool
+    initial_admin_setup_key: str | None = Field(default=None, min_length=32, max_length=256, repr=False)
     account_recovery_key: str | None = Field(default=None, min_length=32, max_length=256, repr=False)
 
     # MySQL connection; password is required and excluded from repr output.

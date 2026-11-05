@@ -21,6 +21,7 @@ Vercel cung cap HTTPS cho domain frontend. Rewrite phai tro den URL `https://` c
 Dat cac bien moi truong tu `backend/.env.example` trong dashboard cua nha cung cap backend:
 
 - `APP_HOST=0.0.0.0`, `APP_PORT` theo cong ma nha cung cap yeu cau.
+- Dat `INITIAL_ADMIN_SETUP_KEY` thanh mot bi mat ngau nhien, it nhat 32 ky tu. Nhap gia tri nay tren giao dien tao tai khoan admin lan dau; endpoint se tu choi setup neu khong co khoa hop le.
 - `TLS_TERMINATED_BY_PROXY=true` va `SESSION_COOKIE_SECURE=true` neu nha cung cap ket thuc HTTPS tai reverse proxy. Chi bat tuy chon nay khi hostname backend cong khai chi truy cap qua HTTPS.
 - De cookie cung origin hoat dong, dat `FRONTEND_ORIGIN` bang origin Vercel, vi du `https://ten-du-an.vercel.app` (khong co `/` cuoi). `CORS_ALLOWED_ORIGINS` co the de trong neu khong co frontend origin phu.
 - Dat `SESSION_COOKIE_SAMESITE=lax`.

@@ -10,7 +10,7 @@ interface AuthState {
   passwordRecoveryEnabled: boolean;
   signIn: (username: string, password: string) => Promise<void>;
   registerUser: (username: string, password: string) => Promise<void>;
-  setupAdmin: (username: string, password: string) => Promise<void>;
+  setupAdmin: (username: string, password: string, setupKey: string) => Promise<void>;
   resetPassword: (username: string, recoveryKey: string, newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -54,8 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSetupRequired(false);
   }
 
-  async function setupAdmin(username: string, password: string) {
-    const response = await api.post<AuthUser>("/api/auth/setup", { username, password });
+  async function setupAdmin(username: string, password: string, setupKey: string) {
+    const response = await api.post<AuthUser>(
+      "/api/auth/setup",
+      { username, password },
+      { headers: { "X-Initial-Admin-Setup-Key": setupKey } },
+    );
     setUser(response.data);
     setSetupRequired(false);
   }
